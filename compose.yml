@@ -1,27 +1,9 @@
 services:
-  postgres:
-    image: postgres:17-alpine
-    environment:
-      POSTGRES_USER: bymorning
-      POSTGRES_PASSWORD: bymorning
-      POSTGRES_DB: bymorning
-    volumes:
-      - bymorning-gateway-postgres:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U bymorning -d bymorning"]
-      interval: 2s
-      timeout: 5s
-      retries: 10
-
   app:
     image: ghcr.io/bymorning/gateway:latest
-    depends_on:
-      postgres:
-        condition: service_healthy
     ports:
       - "127.0.0.1:3210:3210"
     environment:
-      DATABASE_URL: postgresql://bymorning:bymorning@postgres:5432/bymorning
       APP_ORIGIN: http://localhost:3210
       PORT: "3210"
       HOST: "0.0.0.0"
@@ -31,5 +13,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  bymorning-gateway-postgres:
   bymorning-gateway-data:
