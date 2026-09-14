@@ -64,7 +64,7 @@ Point any Streamable HTTP MCP client at:
 http://localhost:3210/mcp
 ```
 
-ByMorning uses MCP OAuth, so there is no API key to create or paste into the client. Connect to the endpoint, complete the browser authorization, and approve access to a Workspace. The client can then discover and call the Tools that Workspace exposes to it.
+ByMorning supports MCP OAuth with Dynamic Client Registration, so a compatible client only needs the endpoint—there is no API key to create or paste. On first access, the client follows ByMorning's OAuth challenge, registers itself, and opens the browser authorization flow. Sign in and approve a Workspace to give that client isolated access to only the MCP Tools exposed there.
 
 Tool discovery and calls follow the Workspace's Permission rules. Interactive `ask` approvals are not available to inbound MCP clients, so `ask` and `deny` both fail closed.
 
