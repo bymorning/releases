@@ -56,6 +56,24 @@ Use the API format your client already supports:
 
 Streaming is supported. Features that cannot be represented by the selected destination return an explicit error rather than being silently dropped.
 
+## Call the MCP gateway
+
+Point any Streamable HTTP MCP client at:
+
+```text
+http://localhost:3210/mcp
+```
+
+ByMorning uses MCP OAuth, so there is no API key to create or paste into the client. Connect to the endpoint, complete the browser authorization, and approve access to a Workspace. The client can then discover and call the Tools that Workspace exposes to it.
+
+Tool discovery and calls follow the Workspace's Permission rules. Interactive `ask` approvals are not available to inbound MCP clients, so `ask` and `deny` both fail closed.
+
+## Reduce tool overhead with Code Mode
+
+ByMorning uses a confined runtime sandbox for Code Mode: a tool-use pattern where a model writes code instead of requesting each operation separately. The code can discover available Tools, call several of them in one execution, run independent calls in parallel, and combine their results before returning them to the model.
+
+For multi-step work, this can reduce model round trips and the tokens spent describing intermediate Tool calls and results. The runtime cannot import packages or access the network or filesystem directly; external actions still go through the Tools exposed by ByMorning and remain subject to their Permission rules.
+
 ## What you can control
 
 - **Model access** — connect providers, enable models, restrict provider and model access, and route requests between models.
@@ -82,13 +100,9 @@ The Toolkit exposes 15 configuration Tools:
 
 Ask for the outcome you want; you do not need to mention Tool names. ByMorning selects the appropriate Toolkit operations, shows approval requests when required, and preserves unrelated configuration when applying supported policy changes.
 
-## Connect MCP
+## Connect external MCP servers
 
 Open **MCP Gateway → Add integration**, enter a name and Streamable HTTP endpoint, then authenticate if required. The integration name becomes the Tool namespace.
-
-To connect an external MCP client to ByMorning, copy the Streamable HTTP connection endpoint shown under **MCP Gateway**. The client authorizes access to one Workspace through OAuth.
-
-Interactive `ask` permissions pause Chat for approval. Inbound MCP calls cannot request interactive approval, so `ask` and `deny` both fail closed.
 
 ## Run with Docker
 
