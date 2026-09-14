@@ -18,7 +18,7 @@ cd releases
 docker compose up -d --wait
 ```
 
-Open <http://localhost:3210>. Use `localhost`, not `127.0.0.1`, so the browser origin matches the configured `APP_ORIGIN`.
+Open <http://localhost:3210>.
 
 The default local identity and Workspace are created automatically; no external identity provider is required.
 
