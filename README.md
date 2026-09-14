@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/wordmark.svg" alt="ByMorning" width="520">
+</p>
+
 # ByMorning Gateway
 
 ByMorning provides one access layer between AI clients, model providers, and internal tools, with OpenAI-, Anthropic-, Google-, and MCP-compatible endpoints plus a built-in Chat client.
