@@ -81,7 +81,6 @@ For multi-step work, this can reduce model round trips and the tokens spent desc
 - **Limits** — set monthly budgets and Workspace-wide request and token caps.
 - **Tools** — connect remote MCP servers and expose approved Workspace Tools to MCP clients.
 - **Permissions** — allow, deny, or require interactive approval for Tool actions and resources.
-- **Chat** — use the same models, tools, limits, and permissions through the built-in client.
 
 All clients use the Workspace's effective model configuration, provider restrictions, limits, routing, and usage accounting.
 
@@ -124,15 +123,6 @@ The image is public and does not require a GitHub login. Check its health with:
 curl http://localhost:3210/system/health
 ```
 
-### Update
-
-```sh
-docker compose pull
-docker compose up -d --wait
-```
-
-Startup migrations run before the application serves requests, and the existing volume is reused.
-
 ### Data
 
 The `bymorning-gateway-data` volume contains the PGlite database, stored files, and local login cookie key. Back up this volume to retain the installation.
@@ -143,8 +133,6 @@ This image is intended for local, loopback use:
 
 - one PGlite-backed application container;
 - no horizontal scaling.
-
-Public HTTPS, production SSO, AWS, GovCloud, and horizontally scaled deployments use separate deployment paths.
 
 ## License
 
