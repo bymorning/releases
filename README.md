@@ -74,6 +74,14 @@ ByMorning uses a confined runtime sandbox for Code Mode: a tool-use pattern wher
 
 For multi-step work, this can reduce model round trips and the tokens spent describing intermediate Tool calls and results. The runtime cannot import packages or access the network or filesystem directly; external actions still go through the Tools exposed by ByMorning and remain subject to their Permission rules.
 
+## Turn scripts into Tools
+
+Upload a Python or JavaScript file in Chat, then ask ByMorning to create a Tool plugin from it:
+
+> Create a Tool plugin from `@report.py`. Give it a `source` input and return the generated report.
+
+ByMorning writes the plugin into the current Project, defines the Tool's inputs and outputs, and connects it to the uploaded script. The script runs in the configured runtime sandbox rather than in the ByMorning server process. Once the plugin activates, the Tool is available to Chat and can be exposed through the MCP gateway under the Workspace's Permission rules.
+
 ## What you can control
 
 - **Model access** — connect providers, enable models, restrict provider and model access, and route requests between models.
