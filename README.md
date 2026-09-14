@@ -1,8 +1,9 @@
 # ByMorning Gateway
 
-Run one access layer between your AI clients, model providers, and internal tools.
+ByMorning provides one access layer between AI clients, model providers, and internal tools, with OpenAI-, Anthropic-, Google-, and MCP-compatible endpoints plus a built-in Chat client.
 
-ByMorning gives coding agents and applications OpenAI-, Anthropic-, Google-, and MCP-compatible endpoints while keeping model access, tool permissions, routing, budgets, and usage in one Workspace. It also includes a Chat client for interactive work.
+> [!NOTE]
+> ByMorning is focused on teams operating in constrained environments, where centralized control over model and tool access is essential.
 
 This repository is the public, local Docker distribution. It runs as one container and persists its database and files in one Docker volume.
 
@@ -14,8 +15,6 @@ This repository is the public, local Docker distribution. It runs as one contain
 - **Tool permissions** — allow, deny, or require approval for Tool actions and resources.
 - **Budgets and limits** — set monthly spend limits plus Workspace-wide requests-per-minute and tokens-per-minute caps.
 - **Usage** — inspect invocations, tokens, and known spend by Model and user.
-- **Configuration as code** — manage one validated JSON Workspace document through the API.
-- **Conversational configuration** — ask ByMorning to update supported policy, MCP, Integration, and Skill settings using its operational Toolkit.
 - **Chat** — use the built-in client for Sessions, Tools, approvals, Projects, files, Skills, and subagents.
 
 ## Quick start
@@ -68,11 +67,10 @@ All clients use the Workspace's effective Models, Provider admission, limits, ro
 
 Start the container, open <http://localhost:3210>, and continue with local sign-in. The default local identity and a default Workspace are created without an external identity provider.
 
-You can configure ByMorning in three ways:
+You can configure ByMorning in two ways:
 
 1. **Console** — use the web UI for Providers, Models, MCP integrations, permissions, budgets, service accounts, and usage.
-2. **Configuration as code** — read and replace the validated Workspace JSON document through `/api/config`.
-3. **Ask ByMorning** — in Chat, ask it to inspect or update supported policy settings, connect MCP servers, authorize Integrations, or manage Skills. The Toolkit still enforces Permission rules and asks for approval when required.
+2. **Ask ByMorning** — in Chat, ask it to inspect or update supported policy settings, connect MCP servers, authorize Integrations, or manage Skills. The Toolkit still enforces Permission rules and asks for approval when required.
 
 ### 1. Connect Models and Providers
 
@@ -191,60 +189,7 @@ Open **AI Gateway → Overview** to inspect:
 
 Gateway and Chat inference share the Workspace's RPM, TPM, and Workspace Spend Limit.
 
-### 7. Manage configuration as code
-
-Workspace configuration is one persisted JSON document. From the signed-in browser, read the resolved document before updating it:
-
-```js
-const workspace = "wrk_…"
-const current = await fetch(`/api/config?workspace=${workspace}`).then((response) => {
-  if (!response.ok) throw new Error(`Configuration read failed: ${response.status}`)
-  return response.json()
-})
-
-console.log(current)
-```
-
-The same-origin browser request uses your signed-in cookie. `PUT /api/config` is a complete replacement, not a merge patch. Preserve every writable field you intend to keep. The operation validates, persists, activates, and returns the resolved configuration. Provider and Integration credentials remain managed Connections rather than fields in this document.
-
-For example, update a writable field while preserving the rest and excluding server-owned Model state:
-
-```js
-const { default_model, model_policy, ...writable } = current
-const updated = await fetch(`/api/config?workspace=${workspace}`, {
-  method: "PUT",
-  headers: { "content-type": "application/json" },
-  body: JSON.stringify({
-    ...writable,
-    gateway: {
-      ...writable.gateway,
-      limits: { ...writable.gateway?.limits, rpm: 300 }
-    }
-  })
-}).then((response) => {
-  if (!response.ok) throw new Error(`Configuration update failed: ${response.status}`)
-  return response.json()
-})
-```
-
-The document controls:
-
-| Field | Purpose |
-| --- | --- |
-| `gateway` | Model allowlist and Workspace RPM/TPM caps |
-| `providers` | Provider allowlist |
-| `routing` | Model remaps |
-| `permissions` | Ordered Tool Permission rules |
-| `mcp` | Outbound MCP servers |
-| `websearch` | Search Provider selection or disablement |
-| `plugins` | Plugin additions, options, and removals |
-| `default_agent` | Preferred Agent for new Sessions |
-| `compaction` | Automatic context compaction settings |
-| `tool_output` | Model-visible Tool output limits |
-
-Prefer the Console or focused management APIs when changing only one resource. Use the complete document when you want reviewable configuration as code.
-
-### 8. Use Chat
+### 7. Use Chat
 
 Chat is a client of the same Gateway configuration—not a separate model or tool environment. Start a Session to:
 
@@ -253,9 +198,9 @@ Chat is a client of the same Gateway configuration—not a separate model or too
 - review Tool input, output, diffs, and errors;
 - approve `ask` Permission requests;
 - organize Sessions around Projects and files;
+- use operational Toolkit Tools to configure policy, manage MCP servers, authorize Integrations, and manage Skills conversationally, subject to Permission rules and required approvals;
 - save reusable Skills;
-- delegate work to subagents;
-- ask ByMorning to configure supported Gateway features through its Toolkit.
+- delegate work to subagents.
 
 ## Local data
 
@@ -305,8 +250,11 @@ Then open <http://localhost:8080>.
 
 ## Limits of this distribution
 
+> [!NOTE]
+> This local image runs as a single container and is not horizontally scaled. Contact ByMorning to discuss enterprise deployment and horizontal-scaling options.
+
 - Designed for local, loopback access. Local Login accepts only loopback HTTP origins.
-- One PGlite-backed application container, not a horizontally scaled deployment.
+- One PGlite-backed application container.
 - No bundled Code Interpreter runtime or Docker socket access.
 - Filesystem storage only by default.
 - Public HTTPS, production SSO, AWS, and GovCloud use separate deployment paths.
