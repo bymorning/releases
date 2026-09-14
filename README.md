@@ -4,26 +4,13 @@
 
 # ByMorning Gateway
 
-ByMorning provides one access layer between AI clients, model providers, and internal tools, with OpenAI-, Anthropic-, Google-, and MCP-compatible endpoints plus a built-in Chat client.
+Run one local gateway for your team's AI models and tools. ByMorning gives AI clients a shared endpoint while administrators control which providers, models, and tools are available, how much they can be used, and where requests are routed.
 
-> [!NOTE]
-> ByMorning is focused on teams operating in constrained environments, where centralized control over model and tool access is essential.
+It supports OpenAI, Anthropic, and Google request formats, MCP clients and servers, and includes a built-in Chat client.
 
-This repository is the public, local Docker distribution. It runs as one container and persists its database and files in one Docker volume.
-
-## Features
-
-- **LLM Gateway** — connect multiple model Providers behind OpenAI Chat Completions, OpenAI Responses, Anthropic Messages, and Google GenerateContent APIs.
-- **MCP Gateway** — connect ByMorning to remote MCP servers and expose allowed Workspace Tools to external MCP clients.
-- **Model control** — enable Models, restrict Providers, set Model allowlists, and route requests to another Model.
-- **Tool permissions** — allow, deny, or require approval for Tool actions and resources.
-- **Budgets and limits** — set monthly spend limits plus Workspace-wide requests-per-minute and tokens-per-minute caps.
-- **Usage** — inspect invocations, tokens, and known spend by Model and user.
-- **Chat** — use the built-in client for Sessions, Tools, approvals, Projects, files, Skills, and subagents.
+This repository contains the public single-container Docker distribution. Application data and files persist in one Docker volume.
 
 ## Quick start
-
-### Docker Compose
 
 ```sh
 git clone https://github.com/bymorning/releases.git
@@ -33,70 +20,19 @@ docker compose up -d --wait
 
 Open <http://localhost:3210>. Use `localhost`, not `127.0.0.1`, so the browser origin matches the configured `APP_ORIGIN`.
 
-### Docker
+The default local identity and Workspace are created automatically; no external identity provider is required.
 
-```sh
-docker run --name bymorning -d \
-  -p 127.0.0.1:3210:3210 \
-  -e HOST=0.0.0.0 \
-  -e PORT=3210 \
-  -e APP_ORIGIN=http://localhost:3210 \
-  -v bymorning-gateway-data:/data \
-  ghcr.io/bymorning/gateway:latest
-```
+## Connect a model
 
-The image is public; pulling it does not require a GitHub login.
+1. Open **AI Gateway → Models → Providers**.
+2. Add a provider and its credentials.
+3. Enable at least one model.
 
-Check health:
+ByMorning supports **15 model providers**: OpenAI, Anthropic, Google, OpenCode Zen, Fireworks, Amazon Bedrock, Groq, Cerebras, DeepInfra, Together AI, Mistral, DeepSeek, Baseten, OpenRouter, and xAI. You can also define a custom provider with its own endpoint, request format, and authentication.
 
-```sh
-curl http://localhost:3210/system/health
-```
+## Call the gateway
 
-## How it fits
-
-```text
-Claude Code ─┐                         ┌─ OpenAI
-Codex ───────┤   OpenAI / Anthropic   ├─ Anthropic
-Your apps ───┼──────► ByMorning ──────┼─ Google
-MCP clients ─┤         Gateway         ├─ Bedrock
-Chat ────────┘            │            └─ other Providers
-                          │
-                          └─ remote MCP servers and Workspace Tools
-```
-
-All clients use the Workspace's effective Models, Provider admission, limits, routing, and usage accounting. Tool callers use the Workspace Tool catalog and Permission rules appropriate to their entrypoint.
-
-## Configure the Gateway
-
-Start the container, open <http://localhost:3210>, and continue with local sign-in. The default local identity and a default Workspace are created without an external identity provider.
-
-You can configure ByMorning in two ways:
-
-1. **Console** — use the web UI for Providers, Models, MCP integrations, permissions, budgets, service accounts, and usage.
-2. **Ask ByMorning** — in Chat, ask it to inspect or update supported policy settings, connect MCP servers, authorize Integrations, or manage Skills. The Toolkit still enforces Permission rules and asks for approval when required.
-
-### 1. Connect Models and Providers
-
-Open **AI Gateway → Models → Providers**, then add a Provider and Connection. Stored credentials remain managed Connections; supported environment credentials are discovered automatically.
-
-| Provider | Environment credentials |
-| --- | --- |
-| Bymorning | `BYMORNING_API_KEY` |
-| OpenAI | `OPENAI_API_KEY` |
-| Anthropic | `ANTHROPIC_API_KEY` |
-| Google | `GOOGLE_API_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY`, or `GEMINI_API_KEY` |
-| OpenCode Zen | `OPENCODE_API_KEY` |
-| Fireworks | `FIREWORKS_API_KEY` |
-| Amazon Bedrock | `AWS_BEARER_TOKEN_BEDROCK` and `AWS_REGION`, or AWS access credentials and region |
-
-After connecting a Provider, enable the Models the Workspace may use.
-
-### 2. Call the LLM Gateway
-
-Open **AI Gateway → Service accounts**, create a Service Account and key, and copy the `bm_…` key when shown. ByMorning stores only its hash.
-
-Call the OpenAI-compatible endpoint:
+Open **AI Gateway → Service accounts**, create a Service Account, and copy its `bm_…` key when shown. ByMorning stores only the key's hash.
 
 ```sh
 curl http://localhost:3210/inference/openai/v1/chat/completions \
@@ -108,7 +44,7 @@ curl http://localhost:3210/inference/openai/v1/chat/completions \
   }'
 ```
 
-Supported protocol surfaces:
+Use the API format your client already supports:
 
 | Protocol | Endpoint |
 | --- | --- |
@@ -118,150 +54,83 @@ Supported protocol surfaces:
 | Google GenerateContent | `/inference/google/v1beta/models/{model}:generateContent` |
 | OpenAI model discovery | `/inference/openai/v1/models` |
 
-Streaming is supported. If a selected destination cannot represent a request feature, ByMorning returns an explicit error rather than silently dropping it.
+Streaming is supported. Features that cannot be represented by the selected destination return an explicit error rather than being silently dropped.
 
-### 3. Connect MCP servers
+## What you can control
 
-Open **MCP Gateway → Add integration**, enter a name and a Streamable HTTP endpoint, then authenticate if required. The name becomes the Tool namespace; for example, server `linear` contributes actions such as `linear_create_issue`.
+- **Model access** — connect providers, enable models, restrict provider and model access, and route requests between models.
+- **Usage** — inspect requests, tokens, and known spend by model and user.
+- **Limits** — set monthly budgets and Workspace-wide request and token caps.
+- **Tools** — connect remote MCP servers and expose approved Workspace Tools to MCP clients.
+- **Permissions** — allow, deny, or require interactive approval for Tool actions and resources.
+- **Chat** — use the same models, tools, limits, and permissions through the built-in client.
 
-You can also ask Chat:
+All clients use the Workspace's effective model configuration, provider restrictions, limits, routing, and usage accounting.
 
-> Connect the Linear MCP server at `https://mcp.linear.app/mcp`.
+## Configure with Chat
 
-ByMorning can save the server, start the OAuth flow, and load its Tool catalog through the Toolkit, subject to your Permission rules.
+You do not have to navigate the Console for every change. Ask ByMorning in Chat and its operational Toolkit can inspect or update Workspace configuration, subject to the same Permission rules and approval flow as other Tools.
 
-To use ByMorning from an external MCP client, copy the connection endpoint from **MCP Gateway** and add it as a Streamable HTTP MCP server. The client authorizes access to one Workspace through OAuth.
+The Toolkit exposes 15 configuration Tools:
 
-### 4. Set Tool permissions
+| Area | Tools | Example prompts |
+| --- | --- | --- |
+| Policy | `toolkit.policy.get`, `toolkit.policy.update` | “Show me the current gateway policy.”<br>“Allow only OpenAI and Anthropic, with a limit of 300 RPM and 500,000 TPM.”<br>“Route requests for `gpt-5.6` to `claude-sonnet-5`.”<br>“Allow read actions, deny access to `.env` files, and ask before everything else.” |
+| MCP servers | `toolkit.mcp.list`, `toolkit.mcp.put`, `toolkit.mcp.remove`, `toolkit.mcp.connect`, `toolkit.mcp.disconnect`, `toolkit.mcp.status` | “List the configured MCP servers.”<br>“Add the Linear MCP server at `https://mcp.linear.app/mcp` and connect it.”<br>“Show the status of Linear.”<br>“Disconnect Jira without deleting its configuration.”<br>“Remove the Jira MCP server.” |
+| Integration OAuth | `toolkit.integration.connect`, `toolkit.integration.status` | “Authorize my Linear Integration.”<br>“Check whether the Linear authorization completed.” |
+| Skills | `toolkit.skill.list`, `toolkit.skill.get`, `toolkit.skill.create`, `toolkit.skill.update`, `toolkit.skill.delete` | “List the available Skills.”<br>“Create a release-review Skill that checks readiness and rollback plans.”<br>“Update the release-review Skill to include migration checks.”<br>“Delete the release-review Skill.” |
 
-Permission rules are ordered; the last matching rule wins. Effects are `allow`, `ask`, and `deny`.
+Ask for the outcome you want; you do not need to mention Tool names. ByMorning selects the appropriate Toolkit operations, shows approval requests when required, and preserves unrelated configuration when applying supported policy changes.
 
-```jsonc
-{
-  "permissions": [
-    { "action": "*", "resource": "*", "effect": "ask" },
-    { "action": "read", "resource": "*", "effect": "allow" },
-    { "action": "read", "resource": "*.env", "effect": "deny" },
-    { "action": "linear_search", "resource": "*", "effect": "allow" }
-  ]
-}
-```
+## Connect MCP
 
-`ask` pauses an interactive Chat Session for approval. Inbound MCP cannot open an interactive approval, so both `ask` and `deny` fail closed there.
+Open **MCP Gateway → Add integration**, enter a name and Streamable HTTP endpoint, then authenticate if required. The integration name becomes the Tool namespace.
 
-### 5. Restrict and route Models
+To connect an external MCP client to ByMorning, copy the Streamable HTTP connection endpoint shown under **MCP Gateway**. The client authorizes access to one Workspace through OAuth.
 
-Use Workspace configuration to admit Providers, restrict exact Models, cap activity, and remap requests:
+Interactive `ask` permissions pause Chat for approval. Inbound MCP calls cannot request interactive approval, so `ask` and `deny` both fail closed.
 
-```jsonc
-{
-  "providers": {
-    "allow": ["openai", "anthropic"]
-  },
-  "gateway": {
-    "limits": {
-      "rpm": 300,
-      "tpm": 500000
-    },
-    "models": ["gpt-5.6", "claude-sonnet-5"]
-  },
-  "routing": [
-    {
-      "from": { "provider": "openai", "id": "gpt-5.6" },
-      "to": { "provider": "anthropic", "id": "claude-sonnet-5" }
-    }
-  ]
-}
-```
+## Run with Docker
 
-Or ask Chat:
-
-> Allow only OpenAI and Anthropic. Cap the Workspace at 300 RPM and 500,000 TPM.
-
-The Toolkit can read the current policy and update these supported fields without replacing unrelated Workspace configuration.
-
-### 6. Set budgets and inspect usage
-
-Open **AI Gateway → Budgets** to set monthly USD Spend Limits for the Workspace, members, or Service Accounts. A Holder without a limit remains unrestricted but still accrues spend.
-
-Open **AI Gateway → Overview** to inspect:
-
-- invocations;
-- input, output, reasoning, cache-read, and cache-write tokens;
-- known spend;
-- usage by Model and user.
-
-Gateway and Chat inference share the Workspace's RPM, TPM, and Workspace Spend Limit.
-
-### 7. Use Chat
-
-Chat is a client of the same Gateway configuration—not a separate model or tool environment. Start a Session to:
-
-- work with an enabled Model;
-- invoke built-in and MCP Tools;
-- review Tool input, output, diffs, and errors;
-- approve `ask` Permission requests;
-- organize Sessions around Projects and files;
-- use operational Toolkit Tools to configure policy, manage MCP servers, authorize Integrations, and manage Skills conversationally, subject to Permission rules and required approvals;
-- save reusable Skills;
-- delegate work to subagents.
-
-## Local data
-
-The `bymorning-gateway-data` volume contains everything needed by this local installation:
-
-| Path | Contents |
-| --- | --- |
-| `/data/pglite` | PGlite database: Workspaces, configuration, usage, and application records |
-| `/data/storage` | Filesystem-backed object storage |
-| `/data/cookie.key` | Local login cookie key |
-
-Back up the volume to retain the installation. Removing it drops Workspace data and signs users out. Existing Compose Postgres volumes are not imported.
-
-To stop without deleting data:
+You can run the image without Compose:
 
 ```sh
-docker compose down
+docker run --name bymorning -d \
+  -p 127.0.0.1:3210:3210 \
+  -e HOST=0.0.0.0 \
+  -e PORT=3210 \
+  -e APP_ORIGIN=http://localhost:3210 \
+  -v bymorning-gateway-data:/data \
+  ghcr.io/bymorning/gateway:latest
 ```
 
-To intentionally delete all local data:
+The image is public and does not require a GitHub login. Check its health with:
 
 ```sh
-docker compose down --volumes
+curl http://localhost:3210/system/health
 ```
 
-## Update
+### Update
 
 ```sh
 docker compose pull
 docker compose up -d --wait
 ```
 
-The same volume is reused. Startup migrations run before the application begins serving requests.
+Startup migrations run before the application serves requests, and the existing volume is reused.
 
-## Change the port
+### Data
 
-If port `3210` is busy, update both the host port and `APP_ORIGIN`:
+The `bymorning-gateway-data` volume contains the PGlite database, stored files, and local login cookie key. Back up this volume to retain the installation.
 
-```yaml
-ports:
-  - "127.0.0.1:8080:3210"
-environment:
-  APP_ORIGIN: http://localhost:8080
-```
+## Limitations
 
-Then open <http://localhost:8080>.
+This image is intended for local, loopback use:
 
-## Limits of this distribution
+- one PGlite-backed application container;
+- no horizontal scaling.
 
-> [!NOTE]
-> This local image runs as a single container and is not horizontally scaled. Contact ByMorning to discuss enterprise deployment and horizontal-scaling options.
-
-- Designed for local, loopback access. Local Login accepts only loopback HTTP origins.
-- One PGlite-backed application container.
-- No bundled Code Interpreter runtime or Docker socket access.
-- Filesystem storage only by default.
-- Public HTTPS, production SSO, AWS, and GovCloud use separate deployment paths.
+Public HTTPS, production SSO, AWS, GovCloud, and horizontally scaled deployments use separate deployment paths.
 
 ## License
 
