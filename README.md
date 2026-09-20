@@ -144,4 +144,4 @@ This image is intended for local, loopback use:
 
 ## License
 
-The MIT license in this repository covers the install files only. The container image is not distributed under the MIT license.
+The MIT license in this repository covers the install files only. The container image is provided under the [Bymorning Software License Agreement](https://bymorning.ai/license), not the MIT license.
