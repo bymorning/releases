@@ -20,8 +20,9 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-This license applies only to the files in this repository (Compose, README,
-and other install glue). The ByMorning gateway container image
-(ghcr.io/bymorning/gateway) is not licensed under MIT. You may pull and run
-that image; you do not receive a license to redistribute, modify, or relicense
-the software inside it.
+This license applies only to the files in this repository (documentation,
+installer sources, and other release glue). The ByMorning software distributed
+through this repository's releases, including its container images and the
+software inside them, is not licensed under MIT. It is licensed under the
+ByMorning Software License Agreement (https://bymorning.ai/license); you do not
+receive a license to redistribute, modify, or relicense it.

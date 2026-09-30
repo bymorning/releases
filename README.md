@@ -2,146 +2,84 @@
   <img src="assets/wordmark.svg" alt="ByMorning" width="520">
 </p>
 
-# ByMorning Gateway
+# ByMorning releases
 
-Run one local gateway for your team's AI models and tools. ByMorning gives AI clients a shared endpoint while administrators control which providers, models, and tools are available, how much they can be used, and where requests are routed.
+ByMorning is a self-hosted gateway between AI and your internal systems. The ByMorning chat client, coding agents,
+and your own applications connect through it to reach models and tools. Every request is permission-checked and
+logged, and administrators configure providers, integrations, permissions, policies, and budgets in one place.
 
-It supports OpenAI, Anthropic, and Google request formats, MCP clients and servers, and includes a built-in Chat client.
+This repository publishes ByMorning releases: signed container images, the installer for each supported platform,
+and the security evidence for every build. Product information is at <https://bymorning.ai>.
 
-This repository contains the public single-container Docker distribution. Application data and files persist in one Docker volume.
+## Current release
 
-## Quick start
+**ByMorning 1.1.0** — [release page](https://github.com/bymorning/releases/releases/tag/v1.1.0) ·
+[release notes](docs/azure/RELEASE-NOTES-1.1.0.md)
+
+| Platform                       | Package                                                                                                                 | Installation guide                 |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| Azure Kubernetes Service (AKS) | [`bymorning-azure-1.1.0.zip`](https://github.com/bymorning/releases/releases/download/v1.1.0/bymorning-azure-1.1.0.zip) | [docs/azure](docs/azure/README.md) |
+
+The Azure package supports Azure Government and global Azure. For other environments, contact ByMorning through
+<https://bymorning.ai>.
+
+## What a release contains
+
+Each package is a self-contained directory:
+
+| Path               | Contents                                                                                   |
+| ------------------ | ------------------------------------------------------------------------------------------ |
+| `README.md`        | Installation guide: prerequisites, configuration, deploy, first sign-in, upgrade, rollback |
+| `RELEASE-NOTES.md` | What changed, requirements, known limits                                                   |
+| `installers/`      | Terraform module and example root, Kubernetes manifests, and helper scripts                |
+| `release/`         | OCI image tarballs, their digests, the signing key, and signed evidence for each image     |
+| `licenses.md`      | Third-party license report                                                                 |
+
+Images are shipped as OCI tarballs rather than pulled from a public registry, so you push them into your own
+registry and pin them by digest. Every image is accompanied by:
+
+- a CycloneDX and an SPDX software bill of materials;
+- a vulnerability scan and a written triage of every Critical and High finding;
+- a signed `SHA256SUMS` covering the tarball and the reports beside it.
+
+## Verifying a release
+
+Releases are signed with the ByMorning release key. The public key is pinned in this repository as
+[`cosign.pub`](cosign.pub) and is also attached to every release; the two must match.
 
 ```sh
-git clone https://github.com/bymorning/releases.git
-cd releases
-docker compose up -d --wait
+curl -fsSLO https://github.com/bymorning/releases/releases/download/v1.1.0/bymorning-azure-1.1.0.zip
+curl -fsSLO https://github.com/bymorning/releases/releases/download/v1.1.0/bymorning-azure-1.1.0.zip.bundle
+curl -fsSLO https://raw.githubusercontent.com/bymorning/releases/main/cosign.pub
+
+cosign verify-blob --key cosign.pub --bundle bymorning-azure-1.1.0.zip.bundle bymorning-azure-1.1.0.zip
 ```
 
-Open <http://localhost:3210>.
-
-The default local identity and Workspace are created automatically; no external identity provider is required.
-
-## Connect a model
-
-1. Open **AI Gateway → Models → Providers**.
-2. Add a provider and its credentials.
-3. Enable at least one model.
-
-ByMorning supports **15 model providers**: OpenAI, Anthropic, Google, OpenCode Zen, Fireworks, Amazon Bedrock, Groq, Cerebras, DeepInfra, Together AI, Mistral, DeepSeek, Baseten, OpenRouter, and xAI. You can also define a custom provider with its own endpoint, request format, and authentication.
-
-## Call the gateway
-
-Open **AI Gateway → Service accounts**, create a Service Account, and copy its `bm_…` key when shown. ByMorning stores only the key's hash.
-
-```sh
-curl http://localhost:3210/inference/openai/v1/chat/completions \
-  -H "Authorization: Bearer bm_…" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "your-enabled-model",
-    "messages": [{ "role": "user", "content": "Say hi" }]
-  }'
-```
-
-Use the API format your client already supports:
-
-| Protocol | Endpoint |
-| --- | --- |
-| OpenAI Chat Completions | `/inference/openai/v1/chat/completions` |
-| OpenAI Responses | `/inference/openai/v1/responses` |
-| Anthropic Messages | `/inference/anthropic/v1/messages` |
-| Google GenerateContent | `/inference/google/v1beta/models/{model}:generateContent` |
-| OpenAI model discovery | `/inference/openai/v1/models` |
-
-Streaming is supported. Features that cannot be represented by the selected destination return an explicit error rather than being silently dropped.
-
-## Call the MCP gateway
-
-Point any Streamable HTTP MCP client at:
+Inside the package, the installation guide shows how to verify each image tarball and its evidence with the same
+key before pushing it to your registry.
 
 ```text
-http://localhost:3210/mcp
+-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAErtYUpiz3HufOvMF5nQ5eGBt3Wh4n
+H4zDmOn8Lpc8daxigMr7H/hiVlzrYcLQ7RQsM0f4cL3caZgH3SW0UUS8hg==
+-----END PUBLIC KEY-----
 ```
 
-ByMorning supports MCP OAuth with Dynamic Client Registration, so a compatible client only needs the endpoint—there is no API key to create or paste. On first access, the client follows ByMorning's OAuth challenge, registers itself, and opens the browser authorization flow. Sign in and approve a Workspace to give that client isolated access to only the MCP Tools exposed there.
+## Licensing
 
-Tool discovery and calls follow the Workspace's Permission rules. Interactive `ask` approvals are not available to inbound MCP clients, so `ask` and `deny` both fail closed.
+Every installation starts a 30-day trial with every capability enabled. Before the trial ends, an Installation Admin
+activates a license on the **License** page by pasting the signed license issued by ByMorning; it is verified
+offline, without contacting ByMorning. Once the trial has ended without a license, the installation is read-only
+until one is activated. Nothing is deleted.
 
-## Reduce tool overhead with Code Mode
+Request a license, or ask a question, at <https://bymorning.ai>.
 
-ByMorning uses a confined runtime sandbox for Code Mode: a tool-use pattern where a model writes code instead of requesting each operation separately. The code can discover available Tools, call several of them in one execution, run independent calls in parallel, and combine their results before returning them to the model.
+## Security
 
-For multi-step work, this can reduce model round trips and the tokens spent describing intermediate Tool calls and results. The runtime cannot import packages or access the network or filesystem directly; external actions still go through the Tools exposed by ByMorning and remain subject to their Permission rules.
-
-## Turn scripts into Tools
-
-Upload a Python or JavaScript file in Chat, then ask ByMorning to create a Tool plugin from it:
-
-> Create a Tool plugin from `@report.py`. Give it a `source` input and return the generated report.
-
-ByMorning writes the plugin into the current Project, defines the Tool's inputs and outputs, and connects it to the uploaded script. The script runs in the configured runtime sandbox rather than in the ByMorning server process. Once the plugin activates, the Tool is available to Chat and can be exposed through the MCP gateway under the Workspace's Permission rules.
-
-## What you can control
-
-- **Model access** — connect providers, enable models, restrict provider and model access, and route requests between models.
-- **Usage** — inspect requests, tokens, and known spend by model and user.
-- **Limits** — set monthly budgets and Workspace-wide request and token caps.
-- **Tools** — connect remote MCP servers and expose approved Workspace Tools to MCP clients.
-- **Permissions** — allow, deny, or require interactive approval for Tool actions and resources.
-
-All clients use the Workspace's effective model configuration, provider restrictions, limits, routing, and usage accounting.
-
-## Configure with Chat
-
-You do not have to navigate the Console for every change. Ask ByMorning in Chat and its operational Toolkit can inspect or update Workspace configuration, subject to the same Permission rules and approval flow as other Tools.
-
-The Toolkit exposes 15 configuration Tools:
-
-| Area | Tools | Example prompts |
-| --- | --- | --- |
-| Policy | `toolkit.policy.get`, `toolkit.policy.update` | “Show me the current gateway policy.”<br>“Allow only OpenAI and Anthropic, with a limit of 300 RPM and 500,000 TPM.”<br>“Route requests for `gpt-5.6` to `claude-sonnet-5`.”<br>“Allow read actions, deny access to `.env` files, and ask before everything else.” |
-| MCP servers | `toolkit.mcp.list`, `toolkit.mcp.put`, `toolkit.mcp.remove`, `toolkit.mcp.connect`, `toolkit.mcp.disconnect`, `toolkit.mcp.status` | “List the configured MCP servers.”<br>“Add the Linear MCP server at `https://mcp.linear.app/mcp` and connect it.”<br>“Show the status of Linear.”<br>“Disconnect Jira without deleting its configuration.”<br>“Remove the Jira MCP server.” |
-| Integration OAuth | `toolkit.integration.connect`, `toolkit.integration.status` | “Authorize my Linear Integration.”<br>“Check whether the Linear authorization completed.” |
-| Skills | `toolkit.skill.list`, `toolkit.skill.get`, `toolkit.skill.create`, `toolkit.skill.update`, `toolkit.skill.delete` | “List the available Skills.”<br>“Create a release-review Skill that checks readiness and rollback plans.”<br>“Update the release-review Skill to include migration checks.”<br>“Delete the release-review Skill.” |
-
-Ask for the outcome you want; you do not need to mention Tool names. ByMorning selects the appropriate Toolkit operations, shows approval requests when required, and preserves unrelated configuration when applying supported policy changes.
-
-## Connect external MCP servers
-
-Open **MCP Gateway → Add integration**, enter a name and Streamable HTTP endpoint, then authenticate if required. The integration name becomes the Tool namespace.
-
-## Run with Docker
-
-You can run the image without Compose:
-
-```sh
-docker run --name bymorning -d \
-  -p 127.0.0.1:3210:3210 \
-  -e HOST=0.0.0.0 \
-  -e PORT=3210 \
-  -e APP_ORIGIN=http://localhost:3210 \
-  -v bymorning-gateway-data:/data \
-  ghcr.io/bymorning/gateway:latest
-```
-
-The image is public and does not require a GitHub login. Check its health with:
-
-```sh
-curl http://localhost:3210/system/health
-```
-
-### Data
-
-The `bymorning-gateway-data` volume contains the PGlite database, stored files, and local login cookie key. Back up this volume to retain the installation.
-
-## Limitations
-
-This image is intended for local, loopback use:
-
-- one PGlite-backed application container;
-- no horizontal scaling.
+See [SECURITY.md](SECURITY.md) for how releases are built and signed and how to report a vulnerability.
 
 ## License
 
-The MIT license in this repository covers the install files only. The container image is provided under the [Bymorning Software License Agreement](https://bymorning.ai/license), not the MIT license.
+The files in this repository are available under the [MIT License](LICENSE). The ByMorning software distributed
+through the releases (container images and the software inside them) is licensed separately under the
+[ByMorning Software License Agreement](https://bymorning.ai/license).
