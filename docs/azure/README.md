@@ -1,36 +1,30 @@
-# ByMorning 1.1.0 on Azure (AKS)
+# ByMorning 1.2.0 on Azure (AKS)
 
 > This is the installation guide shipped as `README.md` inside
-> [`bymorning-azure-1.1.0.zip`](https://github.com/bymorning/releases/releases/download/v1.1.0/bymorning-azure-1.1.0.zip).
-> Paths refer to the unpacked package. The [release notes](RELEASE-NOTES-1.1.0.md) and
+> [`bymorning-azure-1.2.0.zip`](https://github.com/bymorning/releases/releases/download/v1.2.0/bymorning-azure-1.2.0.zip).
+> Paths refer to the unpacked package. The [release notes](RELEASE-NOTES-1.2.0.md) and
 > [sandbox guide](sandbox.md) are alongside.
 
 ## Contents of this package
 
-| Path                | Contents                                                                               |
-| ------------------- | -------------------------------------------------------------------------------------- |
-| `README.md`         | This installation guide                                                                |
-| `RELEASE-NOTES.md`  | What 1.1.0 is, sign-in requirements, known limits                                      |
-| `installers/azure/` | Terraform module and example root, Kubernetes manifests, scripts, and `smoke.sh`       |
+| Path                | Contents                                                                                      |
+| ------------------- | --------------------------------------------------------------------------------------------- |
+| `README.md`         | This installation guide                                                                       |
+| `RELEASE-NOTES.md`  | What 1.2.0 is, sign-in requirements, known limits                                             |
+| `installers/azure/` | Terraform module and example root, Kubernetes manifests, scripts, and `smoke.sh`              |
 | `sandbox/`          | Code execution sandbox manifests and their [README](sandbox.md)                        |
-| `release/`          | Image tarballs, digests, signing key, and signed image evidence (SBOMs, scans, triage) |
-| `licenses.md`       | Third-party license report for the Gateway image                                       |
+| `release/`          | Image tarballs, digests, signing key, `mirror.sh`, and signed evidence (SBOMs, scans, triage) |
+| `licenses.md`       | Third-party license report for the Gateway image                                              |
 
-| Image           | Tarball                                               | Digest                                                                    |
-| --------------- | ----------------------------------------------------- | ------------------------------------------------------------------------- |
-| Gateway (Azure) | `release/bymorning-azure-bbd3c8a5efe2.tar`            | `sha256:0842ae72ba56aee9ad86b41bddf41124f2c61fd4c8660691b5f211fb2f9b40c9` |
-| Code execution  | `release/bymorning-code-interpreter-bbd3c8a5efe2.tar` | `sha256:96e4d4d797f85c3ae3715f544370a40fa29dfcf9473406826b3885120d6ee333` |
+| Image          | Tarball                                               | Digest                                                                    |
+| -------------- | ----------------------------------------------------- | ------------------------------------------------------------------------- |
+| Gateway        | `release/bymorning-508ff42a0ea1.tar`                  | `sha256:d3d3685930b8b0221c256c2e135eeeb9b125fa364aa89534108ae9b73b6905b1` |
+| Code execution | `release/bymorning-code-interpreter-508ff42a0ea1.tar` | `sha256:80e759582ff62210b48da25cd9ba6402a19eb1b3312d12ae8d1af2fdfd63bb5d` |
 
-Evidence: `release/gateway/` (Gateway) and `release/code-interpreter/evidence/` (code execution). Both are signed with
-the key `release/cosign.pub`; see [Release evidence](#release-evidence).
-
-## Licensing
-
-Every installation starts a 30-day trial with every capability enabled. Before the trial ends, an Installation Admin
-opens the **License** page (linked from the Overview countdown, or from the banner once the trial has ended) and
-pastes the signed license issued by ByMorning. The license is verified offline. When no license is active after the
-trial, the installation becomes read-only until one is activated; nothing is deleted. Request a license at
-<https://bymorning.ai>.
+Both images were built from source commit `508ff42a0ea1`. Evidence: `release/gateway/evidence/` (Gateway) and
+`release/code-interpreter/evidence/` (code execution), signed with the key `release/cosign.pub`; see
+[Release evidence](#release-evidence). Compare `release/cosign.pub` with the key published at
+<https://github.com/bymorning/releases>.
 
 ## Overview
 
@@ -48,7 +42,21 @@ Browser ─► Ingress (TLS) ─► Gateway pod (1 replica, Recreate)
                              └─► Amazon Bedrock (optional)       web identity federation or API key
 ```
 
-Run every command from the package root, the directory that contains this README.
+```text
+environments/example/   Terraform root: provider, module call, outputs
+modules/bymorning/      Terraform module
+k8s/base/               Namespace, ServiceAccount, Deployment, Service, Ingress
+k8s/components/         bedrock-web-identity | bedrock-api-key | code-interpreter-kubernetes
+scripts/                overlay.sh, create-secret.sh, fetch-postgres-ca.sh
+release/mirror.sh       pushes both release images to your registry and verifies their digests
+smoke.sh                post-deployment checks
+```
+
+The release directory `release/` holds the two image tarballs, their records (`image-azure.txt`,
+`image-execution.txt`), the signing key `cosign.pub`, `mirror.sh`, and the signed evidence folders
+`gateway/evidence/` and `code-interpreter/evidence/` (see [Release evidence](#release-evidence)).
+
+Run every command from the directory that contains `installers/` and `release/`.
 
 ## Prerequisites
 
@@ -102,37 +110,37 @@ cp terraform.tfvars.example terraform.tfvars
 
 Edit `terraform.tfvars`. These are the variables the example root exposes:
 
-| Name                             | Required | Example                                  | Meaning                                                                                                                                                                             |
-| -------------------------------- | -------- | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `subscription_id`                | Yes      | `"00000000-0000-0000-0000-000000000000"` | Target subscription.                                                                                                                                                                |
-| `environment`                    | No       | `"usgovernment"`                         | `"usgovernment"` (default) or `"public"`. Must match the Azure cloud you logged in to.                                                                                              |
-| `location`                       | No       | `"usgovvirginia"`, `"eastus2"`           | Azure region (default `usgovvirginia`).                                                                                                                                             |
-| `deployer_ip_ranges`             | No       | `["203.0.113.10/32"]`                    | Address of the machine running Terraform. Leave empty only when running inside the VNet.                                                                                            |
-| `private_cluster`                | No       | `false`                                  | Private API server (default `true`). When `false`, set `api_authorized_ip_ranges`.                                                                                                  |
-| `api_authorized_ip_ranges`       | No       | `["203.0.113.0/24"]`                     | Addresses allowed to reach a public API server. `0.0.0.0/0` is rejected.                                                                                                            |
-| `admin_group_object_ids`         | No       | `["<entra-group-object-id>"]`            | Entra groups granted cluster admin. Turns on Azure RBAC for Kubernetes and disables local accounts.                                                                                 |
-| `fips_node_pools`                | No       | `true`                                   | FIPS-enabled node images for the system and user pools.                                                                                                                             |
-| `sandbox_node_pool`              | No       | `true`                                   | Kata VM-isolation node pool for code execution.                                                                                                                                     |
-| `network_policy`                 | No       | `"cilium"`                               | `cilium` (default), `azure`, or `calico`.                                                                                                                                           |
-| `acr_enabled`                    | No       | `false`                                  | Create an Azure Container Registry (default `true`). Set `false` to use your own registry.                                                                                          |
-| `log_analytics`                  | No       | `true`                                   | Create a Log Analytics workspace and enable Container Insights.                                                                                                                     |
-| `federated_audience`             | No       | `"api://AzureADTokenExchange"`           | Audience of the workload identity credential.                                                                                                                                       |
-| `key_vault_sku`                  | No       | `"premium"`                              | `standard` (software keys, default) or `premium` (HSM-backed keys).                                                                                                                 |
-| `system_vm_size`, `user_vm_size` | No       | `"Standard_D2s_v6"`, `"Standard_D4s_v6"` | Node sizes (defaults `Standard_D2s_v5`, `Standard_D4s_v5`). Pick a family your subscription has quota for; new subscriptions in regions such as `eastus2` may have none for `Dsv5`. |
-| `user_node_min`, `user_node_max` | No       | `1`, `3`                                 | Autoscaler bounds of the user node pool.                                                                                                                                            |
-| `outbound_type`                  | No       | `"userDefinedRouting"`                   | `loadBalancer` (default), `userDefinedRouting` (your firewall) or `managedNATGateway`.                                                                                              |
-| `acr_public_network_access`      | No       | `true`                                   | Allow pushing to the registry from outside the VNet (default `false`).                                                                                                              |
-| `postgres_sku`                   | No       | `"GP_Standard_D2ds_v5"`                  | Database size (default shown).                                                                                                                                                      |
-| `name`, `tags`                   | No       | `name = "bymorning"`                     | Resource name prefix (3 to 16 characters) and tags.                                                                                                                                 |
+| Name                       | Required | Example                                  | Meaning                                                                                             |
+| -------------------------- | -------- | ---------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `subscription_id`          | Yes      | `"00000000-0000-0000-0000-000000000000"` | Target subscription.                                                                                |
+| `environment`              | No       | `"usgovernment"`                         | `"usgovernment"` (default) or `"public"`. Must match the Azure cloud you logged in to.              |
+| `location`                 | No       | `"usgovvirginia"`, `"eastus2"`           | Azure region (default `usgovvirginia`).                                                             |
+| `deployer_ip_ranges`       | No       | `["203.0.113.10/32"]`                    | Address of the machine running Terraform. Leave empty only when running inside the VNet.            |
+| `private_cluster`          | No       | `false`                                  | Private API server (default `true`). When `false`, set `api_authorized_ip_ranges`.                  |
+| `api_authorized_ip_ranges` | No       | `["203.0.113.0/24"]`                     | Addresses allowed to reach a public API server. `0.0.0.0/0` is rejected.                            |
+| `admin_group_object_ids`   | No       | `["<entra-group-object-id>"]`            | Entra groups granted cluster admin. Turns on Azure RBAC for Kubernetes and disables local accounts. |
+| `fips_node_pools`          | No       | `true`                                   | FIPS-enabled node images for the system and user pools.                                             |
+| `sandbox_node_pool`        | No       | `true`                                   | Kata VM-isolation node pool for code execution.                                                     |
+| `network_policy`           | No       | `"cilium"`                               | `cilium` (default), `azure`, or `calico`.                                                           |
+| `acr_enabled`              | No       | `false`                                  | Create an Azure Container Registry (default `true`). Set `false` to use your own registry.          |
+| `log_analytics`            | No       | `true`                                   | Create a Log Analytics workspace and enable Container Insights.                                     |
+| `federated_audience`       | No       | `"api://AzureADTokenExchange"`           | Audience of the workload identity credential.                                                       |
+| `key_vault_sku`            | No       | `"premium"`                              | `standard` (software keys, default) or `premium` (HSM-backed keys).                                 |
+| `system_vm_size`, `user_vm_size` | No | `"Standard_D2s_v6"`, `"Standard_D4s_v6"` | Node sizes (defaults `Standard_D2s_v5`, `Standard_D4s_v5`). Pick a family your subscription has quota for; new subscriptions in regions such as `eastus2` may have none for `Dsv5`. |
+| `user_node_min`, `user_node_max` | No | `1`, `3` | Autoscaler bounds of the user node pool. |
+| `outbound_type` | No | `"userDefinedRouting"` | `loadBalancer` (default), `userDefinedRouting` (your firewall) or `managedNATGateway`. |
+| `acr_public_network_access` | No | `true` | Allow pushing to the registry from outside the VNet (default `false`). |
+| `postgres_sku` | No | `"GP_Standard_D2ds_v5"` | Database size (default shown). |
+| `name`, `tags`             | No       | `name = "bymorning"`                     | Resource name prefix (3 to 16 characters) and tags.                                                 |
 
 Other module settings are not variables in the example root. To change them, add the argument to the
-`module "bymorning"` block in `main.tf`. See `installers/azure/modules/bymorning/variables.tf` for all of them; the common ones are:
+`module "bymorning"` block in `main.tf`. See `modules/bymorning/variables.tf` for all of them; the common ones are:
 
-| Module argument                         | Default                                         | Meaning                                                    |
-| --------------------------------------- | ----------------------------------------------- | ---------------------------------------------------------- |
-| `availability_zones`                    | `[]`                                            | Zones for node pools; leave empty where a region has none. |
-| `postgres_high_availability`            | `false`                                         | Zone-redundant database HA.                                |
-| `vnet_cidr`, `service_cidr`, `pod_cidr` | `10.40.0.0/16`, `10.41.0.0/16`, `10.244.0.0/16` | Change if they overlap networks you peer with.             |
+| Module argument                              | Default                                         | Meaning                                                           |
+| -------------------------------------------- | ----------------------------------------------- | ----------------------------------------------------------------- |
+| `availability_zones`                         | `[]`                                            | Zones for node pools; leave empty where a region has none.        |
+| `postgres_high_availability`                 | `false`                                         | Zone-redundant database HA.                                       |
+| `vnet_cidr`, `service_cidr`, `pod_cidr`      | `10.40.0.0/16`, `10.41.0.0/16`, `10.244.0.0/16` | Change if they overlap networks you peer with.                    |
 
 ## Deploy
 
@@ -155,36 +163,53 @@ Other module settings are not variables in the example root. To change them, add
 
    `outputs.json` omits the sensitive values; they reach the cluster through `create-secret.sh`.
 
-3. **Verify and push the image.** This package contains `release/image-azure.txt`, the image tarball
-   `release/bymorning-azure-bbd3c8a5efe2.tar`, `release/cosign.pub`, and the evidence folder for the Azure image,
-   `release/gateway/`. Verify them:
+3. **Verify and push the images.** ByMorning delivers the Gateway image tarball
+   `release/bymorning-508ff42a0ea1.tar` with its record `release/image-azure.txt`, the code execution image
+   `release/bymorning-code-interpreter-508ff42a0ea1.tar` with `release/image-execution.txt`, the signing key
+   `release/cosign.pub`, and one signed evidence folder per image, `release/gateway/evidence/` and
+   `release/code-interpreter/evidence/`. Verify the Gateway image first (`SHA256SUMS` names the tarball as
+   `../../bymorning-508ff42a0ea1.tar`, its place in `release/`):
 
    ```sh
-   cd release/gateway
-   cosign verify-blob --key ../cosign.pub --bundle bymorning-azure-*.tar.bundle ../bymorning-azure-*.tar
-   cosign verify-blob --key ../cosign.pub --bundle SHA256SUMS.bundle SHA256SUMS
-   sha256sum --ignore-missing -c SHA256SUMS   # macOS: shasum -a 256 --ignore-missing -c SHA256SUMS
-   cmp cosign.pub ../cosign.pub               # the evidence key must equal the pinned key
-   cd ../..
+   cd release/gateway/evidence
+   sha256sum -c SHA256SUMS                    # macOS: shasum -a 256 -c SHA256SUMS
+   cmp cosign.pub ../../cosign.pub            # the evidence key must equal the pinned key
+   cosign verify-blob --key ../../cosign.pub --bundle bymorning-*.tar.bundle ../../bymorning-508ff42a0ea1.tar
+   cosign verify-blob --key ../../cosign.pub --bundle SHA256SUMS.bundle SHA256SUMS
+   cosign verify-blob --key ../../cosign.pub --bundle provenance.intoto.json.bundle provenance.intoto.json
+   cd ../../..
    ```
 
-   `--ignore-missing` skips the source-level reports that `SHA256SUMS` also covers but this package omits (see
-   [Release evidence](#release-evidence)). Compare `release/cosign.pub` with the key published at
-   <https://github.com/bymorning/releases>.
+   Each command prints `Verified OK` (or `OK` per file). Repeat in `release/code-interpreter/evidence/` with
+   `bymorning-code-interpreter-*.tar.bundle` and `../../bymorning-code-interpreter-508ff42a0ea1.tar`; that folder has no
+   provenance statement. Compare `release/cosign.pub` with the key published at <https://github.com/bymorning/releases>.
 
-   Push the tarball to your registry and check the digest against the `digest:` line in `release/image-azure.txt`:
+   Sign in to your registry, then push both tarballs with `release/mirror.sh`. It pushes each OCI layout with `crane`,
+   tags it with the release version, fails if a pushed digest differs from the record, and prints the two digest-pinned
+   references:
 
    ```sh
    acr=$(terraform -chdir=installers/azure/environments/<customer> output -raw acr_login_server)
    az acr login --name "${acr%%.*}" --expose-token --output tsv --query accessToken \
      | crane auth login "$acr" --username 00000000-0000-0000-0000-000000000000 --password-stdin
-   layout=$(mktemp -d) && tar -xf release/bymorning-azure-bbd3c8a5efe2.tar -C "$layout"
-   crane push "$layout" "$acr/bymorning:1.1.0"
-   crane digest "$acr/bymorning:1.1.0"      # must equal the digest in release/image-azure.txt
+   sh release/mirror.sh "$acr" 1.2.0
+   ```
+
+   ```text
+   gateway image:   <acr>/bymorning@sha256:<digest>
+   execution image: <acr>/bymorning-code-interpreter@sha256:<digest>
    ```
 
    The registry is private, so run this from the VNet, or set `acr_public_network_access = true`
-   in `terraform.tfvars` for the push. If you use your own registry (`acr_enabled = false`), push there instead.
+   in `terraform.tfvars` for the push. If you use your own registry (`acr_enabled = false`), pass its login server
+   instead. To push by hand, extract a tarball and use `crane` directly; the digest must equal the `digest:` line of
+   its record:
+
+   ```sh
+   layout=$(mktemp -d) && tar -xf release/bymorning-508ff42a0ea1.tar -C "$layout"
+   crane push "$layout" "$acr/bymorning:1.2.0"
+   crane digest "$acr/bymorning:1.2.0"      # must equal the digest in release/image-azure.txt
+   ```
 
 4. **Get cluster credentials.**
 
@@ -245,14 +270,12 @@ synced to Secret `bymorning`. The kit does not ship that class.
 Code runs in short-lived pods, one per call, in namespace `bymorning-sandbox`. The plugin refuses to
 execute unless a deny-all `NetworkPolicy` selects the sandbox pods, so the cluster's network policy engine must enforce it.
 
-1. Push the execution image to the registry the sandbox nodes pull from. It is
-   `release/bymorning-code-interpreter-bbd3c8a5efe2.tar`, described by `release/image-execution.txt`. Verify it
-   with the evidence in `release/code-interpreter/evidence/` (run the same `cosign verify-blob` and
-   `sha256sum -c SHA256SUMS` there, with `bymorning-code-interpreter-bbd3c8a5efe2.tar.bundle` and `../../` for the
-   tarball), then push it as in Deploy step 3 (repository `bymorning-code-interpreter`) and note the digest, which
-   must equal the one in `release/image-execution.txt`.
-2. Edit `installers/azure/k8s/components/code-interpreter-kubernetes/config/bymorning.jsonc` in this package
-   (the shipped `image` is a placeholder):
+1. Push the execution image to the registry the sandbox nodes pull from. `release/mirror.sh` in Deploy step 3
+   already pushed it (`release/bymorning-code-interpreter-508ff42a0ea1.tar`, recorded in `release/image-execution.txt`,
+   verified with `release/code-interpreter/evidence/`) and printed its digest-pinned reference. If you pushed by hand,
+   push it as in that step with repository `bymorning-code-interpreter` and compare the digest with the record.
+2. Edit `installers/azure/k8s/components/code-interpreter-kubernetes/config/bymorning.jsonc`
+   (the shipped `image` is a placeholder; the file is part of the component, so this edit is local to your copy):
 
    ```jsonc
    "options": {
@@ -279,9 +302,9 @@ execute unless a deny-all `NetworkPolicy` selects the sandbox pods, so the clust
    ```
 
    The component mounts the Gateway's service account token so it can reach the Kubernetes API. The
-   Role binds `ServiceAccount bymorning-gateway` in namespace `bymorning`; keep those defaults.
-
-The sandbox manifests and its configuration options are described in [sandbox/README.md](sandbox.md).
+   Role binds `ServiceAccount bymorning-gateway` in namespace `bymorning`; keep those defaults. The sandbox
+   manifests, what runs in a sandbox pod, its isolation layers, and every plugin option are described in
+   [sandbox/README.md](sandbox.md).
 
 Without a digest-pinned `image`, the Gateway refuses to start with `Azure.ConfigError` (`code_interpreter.image`).
 Run `overlay.sh` once with every component you need (repeat `--component`).
@@ -289,6 +312,9 @@ Run `overlay.sh` once with every component you need (repeat `--component`).
 ## Amazon Bedrock
 
 Choose one. Both need `--aws-region <bedrock-region>`; without the right Region, the STS call goes to `us-east-1`.
+For a GovCloud Region (`us-gov-*`) `overlay.sh` also writes `AWS_USE_FIPS_ENDPOINT=true` into the `bymorning-aws`
+ConfigMap so Bedrock is dialed through its FIPS endpoint; the image does not set the flag itself, and it is not set at
+all for a commercial Region.
 
 **Web identity (no stored AWS secret).** The pod's service account token is exchanged for AWS credentials.
 
@@ -321,10 +347,14 @@ Choose one. Both need `--aws-region <bedrock-region>`; without the right Region,
    }
    ```
 
-3. Attach this permission policy. Cross-Region inference profiles (IDs such as `us.anthropic.claude-...`)
-   need **both** the inference-profile ARN and the foundation-model ARN in every Region the profile
-   routes to (`aws bedrock get-inference-profile --inference-profile-identifier <id>` lists them).
-   Missing the second produces `AccessDenied` on `bedrock:InvokeModel`.
+3. Attach this permission policy. The Gateway calls Bedrock Runtime `ConverseStream`
+   (`POST /model/<id>/converse-stream`) for every Bedrock model, which IAM authorizes as
+   `bedrock:InvokeModelWithResponseStream`; `Converse` and `ConverseStream` are API operation names, not
+   IAM actions, and the Gateway never calls the non-streaming `Converse` or `InvokeModel`. Cross-Region
+   inference profiles (IDs such as `us.anthropic.claude-...`) need **both** the inference-profile ARN and
+   the foundation-model ARN in every Region the profile routes to
+   (`aws bedrock get-inference-profile --inference-profile-identifier <id>` lists them). Missing the second
+   produces `AccessDeniedException` from Bedrock.
 
    ```json
    {
@@ -332,7 +362,7 @@ Choose one. Both need `--aws-region <bedrock-region>`; without the right Region,
      "Statement": [
        {
          "Effect": "Allow",
-         "Action": ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"],
+         "Action": ["bedrock:InvokeModelWithResponseStream"],
          "Resource": [
            "arn:<partition>:bedrock:<region>:<account>:inference-profile/<profile-id>",
            "arn:<partition>:bedrock:<region>::foundation-model/<model-id>"
@@ -341,6 +371,10 @@ Choose one. Both need `--aws-region <bedrock-region>`; without the right Region,
      ]
    }
    ```
+
+   Models the catalog serves through Bedrock Mantle (`bedrock-mantle.<region>.api.aws`, `/v1/responses`)
+   additionally need `bedrock-mantle:CreateInference` on
+   `arn:<partition>:bedrock-mantle:<region>:<account>:project/default`.
 
 4. Regenerate the overlay with the component and apply:
 
@@ -426,7 +460,7 @@ It prints manual steps for what needs a signed-in user: a chat and a code execut
 
 ## Upgrade
 
-1. Verify the new release and push its image as in Deploy step 3.
+1. Verify the new release and push its images with `release/mirror.sh` as in Deploy step 3.
 2. Take a database backup (see Rollback).
 3. Re-run `overlay.sh` with the new digest and the same options, then apply:
 
@@ -438,6 +472,13 @@ The pod is replaced (one replica, `Recreate`), so expect a short outage. Migrati
 init container. For a Terraform change, `terraform plan` then `terraform apply` in the environment. After
 rotating the Key Vault key, restart the Gateway; it resolves the latest key version at start. `smoke.sh --rotate`
 does both; the Ingress may answer 503 for a few seconds after the new pod is Ready, which `smoke.sh` waits out.
+
+**Upgrading to 1.2.0.** 1.2.0 ships one Gateway image for every cloud; the manifests bind it to Azure. The base
+`bymorning-env` ConfigMap gains two keys, `STORAGE_PROVIDER=azure-blob` and `CIPHER_BACKEND=keyvault`, so apply the
+1.2.0 `k8s/` tree together with the 1.2.0 image: re-run `overlay.sh` from this release's `installers/azure` and
+`kubectl apply -k` once. The 1.2.0 image refuses to start without the selectors and logs the name of the missing
+variable; the 1.1 image ignores them. `AWS_USE_FIPS_ENDPOINT` is no longer baked into the image: if you run Bedrock in
+a GovCloud Region, the regenerated overlay writes it into `bymorning-aws` (see Amazon Bedrock).
 
 ## Rollback
 
@@ -470,7 +511,7 @@ quota for the default `Dsv5` family. Check `az vm list-usage -l <region>` and se
 data-plane access. Set `deployer_ip_ranges` to the runner's address (single hosts are written without `/32`), or run inside the VNet.
 
 **The pod crashes at startup.** `kubectl -n bymorning logs deploy/bymorning -c gateway --previous`.
-`Azure.ConfigError` names the setting: a Storage or Key Vault host from the other cloud, a Microsoft issuer from the other cloud, or a missing code
+`Host.ConfigError` names the setting: a Storage or Key Vault host from the other cloud, a Microsoft issuer from the other cloud, or a missing code
 execution image. A failed `migrate` init container shows in `-c migrate`.
 
 **Blob or Key Vault calls are denied.** The workload identity token audience must equal `federated_audience`. Run
@@ -482,7 +523,7 @@ attribute are refused. A browser already signed in to another Microsoft account 
 
 **Redirect URI mismatch (`AADSTS50011`).** Register exactly the URI Setup shows (with the provider ID); a provider seeded from `AUTH_*` uses `/auth/callback`.
 
-**Bedrock calls fail with `AccessDenied` on `bedrock:InvokeModel`.** The role policy needs both the inference-profile ARN and the
+**Bedrock calls fail with `AccessDeniedException`.** The role policy needs `bedrock:InvokeModelWithResponseStream` on both the inference-profile ARN and the
 foundation-model ARN(s); see [Amazon Bedrock](#amazon-bedrock). Also check that model access is enabled and that `AWS_REGION` is the Bedrock Region.
 If token exchange fails, check the OIDC provider, the role's `sub` (`system:serviceaccount:bymorning:bymorning-gateway`), and that AWS can reach the issuer URL.
 
@@ -508,9 +549,14 @@ engine that enforces it. Confirm `kubectl -n bymorning-sandbox get networkpolicy
 
 ### Runtime settings
 
-The overlay's `bymorning-env` ConfigMap sets `APP_ORIGIN`, `AZURE_CLOUD` (`AzureCloud` or `AzureUSGovernment`),
-`STORAGE_ACCOUNT_URL`, `STORAGE_CONTAINER`, `KEY_VAULT_KEY`, `BYMORNING_CONFIG`, and `TRUSTED_PROXIES`. Optional
-settings you can add as ConfigMap literals or Secret keys:
+The Gateway image is the same for every cloud; the `bymorning-env` ConfigMap binds it to Azure. The base sets the
+two selectors, `STORAGE_PROVIDER=azure-blob` and `CIPHER_BACKEND=keyvault` (required; the image refuses to start
+without them, and they are fixed for the life of an installation), plus `BYMORNING_CONFIG=/config/bymorning.jsonc`
+(the installation document from the `bymorning-config` ConfigMap) and `TRUSTED_PROXIES`. The overlay merges
+`APP_ORIGIN`, `AZURE_CLOUD` (`AzureCloud` or `AzureUSGovernment`), `STORAGE_ACCOUNT_URL`, `STORAGE_CONTAINER`, and
+`KEY_VAULT_KEY` from the Terraform outputs. `AWS_REGION` here means the Bedrock Region and lives in `bymorning-aws`
+with the other Bedrock settings (see Amazon Bedrock). Optional settings you can add as ConfigMap literals or Secret
+keys:
 
 | Name                  | Meaning                                                                                               |
 | --------------------- | ----------------------------------------------------------------------------------------------------- |
@@ -520,18 +566,15 @@ settings you can add as ConfigMap literals or Secret keys:
 
 ### Release evidence
 
-Both images were built from the same source revision (`bbd3c8a5efe2`, recorded in `release/image-*.txt`) and are
-signed with the ByMorning release key, `release/cosign.pub` (ECDSA P-256, held in a hardware-backed KMS). Every
-evidence folder contains a signed `SHA256SUMS` that covers the tarball and the reports beside it.
+Both images are built from one source commit (the `# built from` line of `release/image-*.txt`) and signed with the
+ByMorning release key `release/cosign.pub` (ECDSA P-256, held in a hardware-backed KMS). Each evidence folder has a
+signed `SHA256SUMS` covering its tarball (as `../../<tarball>`) and every report beside it.
 
-| Folder                               | Contents                                                                                                                                                                                                                                                            |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `release/gateway/`                   | Gateway image: `sbom-image.cyclonedx.json`, `sbom-image.spdx.json`, `vulnerabilities-image-grype.json`, `vulnerabilities.md` (scan summary), `vulnerability-triage.md` (ByMorning Security position on every Critical and High finding), `licenses.md`, `tools.txt` |
-| `release/code-interpreter/evidence/` | Code execution image: image SBOMs, `vulnerabilities-image-grype.json`, `vulnerabilities.md`, `tools.txt`                                                                                                                                                            |
-
-Source-level reports (source SBOM, source dependency scan, static analysis, secret scan), the SLSA provenance
-statement, and the signed OpenVEX statement are listed in `SHA256SUMS` but are not part of this public package.
-Licensed customers can request them through <https://bymorning.ai>.
+| Folder                               | Contents                                                                                                                                                                                                                                                                                                                              |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `release/gateway/evidence/`          | Gateway image: image SBOMs (`sbom-image.cyclonedx.json`, `sbom-image.spdx.json`), source SBOM (`sbom-source.cyclonedx.json`), `vulnerabilities-image-grype.json`, `vulnerabilities-source-grype.json`, `vulnerabilities.md`, `licenses.md`, `gitleaks.json`, `semgrep.sarif`, `bun-audit.txt`, `openvex.json`, `provenance.intoto.json` (SLSA v1), `tools.txt`, and the `.bundle` signatures |
+| `release/gateway/`                   | `vulnerability-triage.md`: the ByMorning Security position on every Critical and High finding                                                                                                                                                                                                                                       |
+| `release/code-interpreter/evidence/` | Code execution image: image SBOMs, `vulnerabilities-image-grype.json`, `vulnerabilities.md`, `tools.txt`, and the `.bundle` signatures                                                                                                                                                                                              |
 
 ### Design notes
 
