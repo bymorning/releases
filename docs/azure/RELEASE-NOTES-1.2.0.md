@@ -35,7 +35,14 @@ Follow the README's [Upgrade](README.md#upgrade) section. In short: verify and m
 digest, and `kubectl apply -k` once. Apply the 1.2.0 manifests together with the 1.2.0 image: the image requires the
 `STORAGE_PROVIDER` and `CIPHER_BACKEND` settings that the 1.2.0 manifests add, and names any missing one in its startup
 log. One additive database migration runs automatically. To roll back, restore the backup taken before the upgrade and
-re-apply the previous digest.
+re-apply the previous digest. Don't roll back after rotating the Key Vault key on 1.2.0: 1.1.0
+reads data keys with the newest key version only.
+
+## Known issue
+
+After the Gateway restarts, a connected OAuth integration (for example Atlassian or an MCP server signed in with
+OAuth) can fail to save its next refreshed token, and a member may need to reconnect it. API-key integrations and
+model providers are not affected. This is also present in 1.1.0 and will be fixed in 1.2.1.
 
 ## Licensing
 
