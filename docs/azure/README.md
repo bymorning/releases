@@ -18,10 +18,10 @@
 
 | Image          | Tarball                                               | Digest                                                                    |
 | -------------- | ----------------------------------------------------- | ------------------------------------------------------------------------- |
-| Gateway        | `release/bymorning-a8470c80cd9b.tar`                  | `sha256:02710e58b12563e46eb60b8d4ecf298cf65648574a006d5a07c42d4251ef45e3` |
-| Code execution | `release/bymorning-code-interpreter-a8470c80cd9b.tar` | `sha256:30bf212923537164a83736c2dd1870c5b92744fef93c37ed1371b9f4b113a826` |
+| Gateway        | `release/bymorning-3c95f0085101.tar`                  | `sha256:b40ac24b15367c6ecfd39c81faf756fb4076fb572e85aff819ef37f867fe5126` |
+| Code execution | `release/bymorning-code-interpreter-3c95f0085101.tar` | `sha256:5fbd0a15a120ed537b1baa342a39cda7a147111f4cd74388821c8e9ef1943d87` |
 
-Both images were built from source commit `a8470c80cd9b`. Evidence: `release/gateway/evidence/` (Gateway) and
+Both images were built from source commit `3c95f0085101`. Evidence: `release/gateway/evidence/` (Gateway) and
 `release/code-interpreter/evidence/` (code execution), signed with the key `release/cosign.pub`; see
 [Release evidence](#release-evidence). Compare `release/cosign.pub` with the key published at
 <https://github.com/bymorning/releases>.
@@ -164,24 +164,24 @@ Other module settings are not variables in the example root. To change them, add
    `outputs.json` omits the sensitive values; they reach the cluster through `create-secret.sh`.
 
 3. **Verify and push the images.** ByMorning delivers the Gateway image tarball
-   `release/bymorning-a8470c80cd9b.tar` with its record `release/image-azure.txt`, the code execution image
-   `release/bymorning-code-interpreter-a8470c80cd9b.tar` with `release/image-execution.txt`, the signing key
+   `release/bymorning-3c95f0085101.tar` with its record `release/image-azure.txt`, the code execution image
+   `release/bymorning-code-interpreter-3c95f0085101.tar` with `release/image-execution.txt`, the signing key
    `release/cosign.pub`, and one signed evidence folder per image, `release/gateway/evidence/` and
    `release/code-interpreter/evidence/`. Verify the Gateway image first (`SHA256SUMS` names the tarball as
-   `../../bymorning-a8470c80cd9b.tar`, its place in `release/`):
+   `../../bymorning-3c95f0085101.tar`, its place in `release/`):
 
    ```sh
    cd release/gateway/evidence
    sha256sum -c SHA256SUMS                    # macOS: shasum -a 256 -c SHA256SUMS
    cmp cosign.pub ../../cosign.pub            # the evidence key must equal the pinned key
-   cosign verify-blob --key ../../cosign.pub --bundle bymorning-*.tar.bundle ../../bymorning-a8470c80cd9b.tar
+   cosign verify-blob --key ../../cosign.pub --bundle bymorning-*.tar.bundle ../../bymorning-3c95f0085101.tar
    cosign verify-blob --key ../../cosign.pub --bundle SHA256SUMS.bundle SHA256SUMS
    cosign verify-blob --key ../../cosign.pub --bundle provenance.intoto.json.bundle provenance.intoto.json
    cd ../../..
    ```
 
    Each command prints `Verified OK` (or `OK` per file). Repeat in `release/code-interpreter/evidence/` with
-   `bymorning-code-interpreter-*.tar.bundle` and `../../bymorning-code-interpreter-a8470c80cd9b.tar`; that folder has no
+   `bymorning-code-interpreter-*.tar.bundle` and `../../bymorning-code-interpreter-3c95f0085101.tar`; that folder has no
    provenance statement. Compare `release/cosign.pub` with the key published at <https://github.com/bymorning/releases>.
 
    Sign in to your registry, then push both tarballs with `release/mirror.sh`. It pushes each OCI layout with `crane`,
@@ -206,7 +206,7 @@ Other module settings are not variables in the example root. To change them, add
    its record:
 
    ```sh
-   layout=$(mktemp -d) && tar -xf release/bymorning-a8470c80cd9b.tar -C "$layout"
+   layout=$(mktemp -d) && tar -xf release/bymorning-3c95f0085101.tar -C "$layout"
    crane push "$layout" "$acr/bymorning:1.2.0"
    crane digest "$acr/bymorning:1.2.0"      # must equal the digest in release/image-azure.txt
    ```
@@ -271,7 +271,7 @@ Code runs in short-lived pods, one per call, in namespace `bymorning-sandbox`. T
 execute unless a deny-all `NetworkPolicy` selects the sandbox pods, so the cluster's network policy engine must enforce it.
 
 1. Push the execution image to the registry the sandbox nodes pull from. `release/mirror.sh` in Deploy step 3
-   already pushed it (`release/bymorning-code-interpreter-a8470c80cd9b.tar`, recorded in `release/image-execution.txt`,
+   already pushed it (`release/bymorning-code-interpreter-3c95f0085101.tar`, recorded in `release/image-execution.txt`,
    verified with `release/code-interpreter/evidence/`) and printed its digest-pinned reference. If you pushed by hand,
    push it as in that step with repository `bymorning-code-interpreter` and compare the digest with the record.
 2. Edit `installers/azure/k8s/components/code-interpreter-kubernetes/config/bymorning.jsonc`

@@ -5,10 +5,10 @@ Azure**. This package installs it with Terraform and Kubernetes manifests; see [
 
 | Image          | Tarball                                             | Digest                 |
 | -------------- | --------------------------------------------------- | ---------------------- |
-| Gateway        | `release/bymorning-a8470c80cd9b.tar`                  | `sha256:02710e58b12563e46eb60b8d4ecf298cf65648574a006d5a07c42d4251ef45e3`   |
-| Code execution | `release/bymorning-code-interpreter-a8470c80cd9b.tar` | `sha256:30bf212923537164a83736c2dd1870c5b92744fef93c37ed1371b9f4b113a826` |
+| Gateway        | `release/bymorning-3c95f0085101.tar`                  | `sha256:b40ac24b15367c6ecfd39c81faf756fb4076fb572e85aff819ef37f867fe5126`   |
+| Code execution | `release/bymorning-code-interpreter-3c95f0085101.tar` | `sha256:5fbd0a15a120ed537b1baa342a39cda7a147111f4cd74388821c8e9ef1943d87` |
 
-Both images are built from source commit `a8470c80cd9b` and signed with the ByMorning release key (`release/cosign.pub`).
+Both images are built from source commit `3c95f0085101` and signed with the ByMorning release key (`release/cosign.pub`).
 SBOMs, vulnerability scans, the SLSA provenance statement, the OpenVEX statement, and the security triage are in
 `release/`; see the README's [Release evidence](README.md#release-evidence) section.
 
