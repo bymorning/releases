@@ -13,12 +13,12 @@ and the security evidence for every build. Product information is at <https://by
 
 ## Current release
 
-**ByMorning 1.2.0** — [release page](https://github.com/bymorning/releases/releases/tag/v1.2.0) ·
-[release notes](docs/azure/RELEASE-NOTES-1.2.0.md)
+**ByMorning 1.2.1** — [release page](https://github.com/bymorning/releases/releases/tag/v1.2.1) ·
+[release notes](docs/azure/RELEASE-NOTES-1.2.1.md)
 
 | Platform                       | Package                                                                                                                 | Installation guide                 |
 | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
-| Azure Kubernetes Service (AKS) | [`bymorning-azure-1.2.0.zip`](https://github.com/bymorning/releases/releases/download/v1.2.0/bymorning-azure-1.2.0.zip) | [docs/azure](docs/azure/README.md) |
+| Azure Kubernetes Service (AKS) | [`bymorning-azure-1.2.1.zip`](https://github.com/bymorning/releases/releases/download/v1.2.1/bymorning-azure-1.2.1.zip) | [docs/azure](docs/azure/README.md) |
 
 The Azure package supports Azure Government and global Azure. For other environments, contact ByMorning through
 <https://bymorning.ai>.
@@ -48,11 +48,11 @@ Releases are signed with the ByMorning release key. The public key is pinned in 
 [`cosign.pub`](cosign.pub) and is also attached to every release; the two must match.
 
 ```sh
-curl -fsSLO https://github.com/bymorning/releases/releases/download/v1.2.0/bymorning-azure-1.2.0.zip
-curl -fsSLO https://github.com/bymorning/releases/releases/download/v1.2.0/bymorning-azure-1.2.0.zip.bundle
+curl -fsSLO https://github.com/bymorning/releases/releases/download/v1.2.1/bymorning-azure-1.2.1.zip
+curl -fsSLO https://github.com/bymorning/releases/releases/download/v1.2.1/bymorning-azure-1.2.1.zip.bundle
 curl -fsSLO https://raw.githubusercontent.com/bymorning/releases/main/cosign.pub
 
-cosign verify-blob --key cosign.pub --bundle bymorning-azure-1.2.0.zip.bundle bymorning-azure-1.2.0.zip
+cosign verify-blob --key cosign.pub --bundle bymorning-azure-1.2.1.zip.bundle bymorning-azure-1.2.1.zip
 ```
 
 Inside the package, the installation guide shows how to verify each image tarball and its evidence with the same

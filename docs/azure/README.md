@@ -1,8 +1,8 @@
-# ByMorning 1.2.0 on Azure (AKS)
+# ByMorning 1.2.1 on Azure (AKS)
 
 > This is the installation guide shipped as `README.md` inside
-> [`bymorning-azure-1.2.0.zip`](https://github.com/bymorning/releases/releases/download/v1.2.0/bymorning-azure-1.2.0.zip).
-> Paths refer to the unpacked package. The [release notes](RELEASE-NOTES-1.2.0.md) and
+> [`bymorning-azure-1.2.1.zip`](https://github.com/bymorning/releases/releases/download/v1.2.1/bymorning-azure-1.2.1.zip).
+> Paths refer to the unpacked package. The [release notes](RELEASE-NOTES-1.2.1.md) and
 > [sandbox guide](sandbox.md) are alongside.
 
 ## Contents of this package
@@ -10,7 +10,7 @@
 | Path                | Contents                                                                                      |
 | ------------------- | --------------------------------------------------------------------------------------------- |
 | `README.md`         | This installation guide                                                                       |
-| `RELEASE-NOTES.md`  | What 1.2.0 is, sign-in requirements, known limits                                             |
+| `RELEASE-NOTES.md`  | What 1.2.1 is, sign-in requirements, known limits                                             |
 | `installers/azure/` | Terraform module and example root, Kubernetes manifests, scripts, and `smoke.sh`              |
 | `sandbox/`          | Code execution sandbox manifests and their [README](sandbox.md)                        |
 | `release/`          | Image tarballs, digests, signing key, `mirror.sh`, and signed evidence (SBOMs, scans, triage) |
@@ -18,10 +18,10 @@
 
 | Image          | Tarball                                               | Digest                                                                    |
 | -------------- | ----------------------------------------------------- | ------------------------------------------------------------------------- |
-| Gateway        | `release/bymorning-3c95f0085101.tar`                  | `sha256:b40ac24b15367c6ecfd39c81faf756fb4076fb572e85aff819ef37f867fe5126` |
-| Code execution | `release/bymorning-code-interpreter-3c95f0085101.tar` | `sha256:5fbd0a15a120ed537b1baa342a39cda7a147111f4cd74388821c8e9ef1943d87` |
+| Gateway        | `release/bymorning-2c43f07c62fc.tar`                  | `sha256:a00e8003597946fb2a58853fe81c883bd91cd7bc899708d619454050eb89616f` |
+| Code execution | `release/bymorning-code-interpreter-2c43f07c62fc.tar` | `sha256:109f89d894c12f55ca13e2aa565bf25ce3811f965cfe252bb6f41bbe62848cca` |
 
-Both images were built from source commit `3c95f0085101`. Evidence: `release/gateway/evidence/` (Gateway) and
+Both images were built from source commit `2c43f07c62fc`. Evidence: `release/gateway/evidence/` (Gateway) and
 `release/code-interpreter/evidence/` (code execution), signed with the key `release/cosign.pub`; see
 [Release evidence](#release-evidence). Compare `release/cosign.pub` with the key published at
 <https://github.com/bymorning/releases>.
@@ -164,24 +164,24 @@ Other module settings are not variables in the example root. To change them, add
    `outputs.json` omits the sensitive values; they reach the cluster through `create-secret.sh`.
 
 3. **Verify and push the images.** ByMorning delivers the Gateway image tarball
-   `release/bymorning-3c95f0085101.tar` with its record `release/image-azure.txt`, the code execution image
-   `release/bymorning-code-interpreter-3c95f0085101.tar` with `release/image-execution.txt`, the signing key
+   `release/bymorning-2c43f07c62fc.tar` with its record `release/image-azure.txt`, the code execution image
+   `release/bymorning-code-interpreter-2c43f07c62fc.tar` with `release/image-execution.txt`, the signing key
    `release/cosign.pub`, and one signed evidence folder per image, `release/gateway/evidence/` and
    `release/code-interpreter/evidence/`. Verify the Gateway image first (`SHA256SUMS` names the tarball as
-   `../../bymorning-3c95f0085101.tar`, its place in `release/`):
+   `../../bymorning-2c43f07c62fc.tar`, its place in `release/`):
 
    ```sh
    cd release/gateway/evidence
    sha256sum -c SHA256SUMS                    # macOS: shasum -a 256 -c SHA256SUMS
    cmp cosign.pub ../../cosign.pub            # the evidence key must equal the pinned key
-   cosign verify-blob --key ../../cosign.pub --bundle bymorning-*.tar.bundle ../../bymorning-3c95f0085101.tar
+   cosign verify-blob --key ../../cosign.pub --bundle bymorning-*.tar.bundle ../../bymorning-2c43f07c62fc.tar
    cosign verify-blob --key ../../cosign.pub --bundle SHA256SUMS.bundle SHA256SUMS
    cosign verify-blob --key ../../cosign.pub --bundle provenance.intoto.json.bundle provenance.intoto.json
    cd ../../..
    ```
 
    Each command prints `Verified OK` (or `OK` per file). Repeat in `release/code-interpreter/evidence/` with
-   `bymorning-code-interpreter-*.tar.bundle` and `../../bymorning-code-interpreter-3c95f0085101.tar`; that folder has no
+   `bymorning-code-interpreter-*.tar.bundle` and `../../bymorning-code-interpreter-2c43f07c62fc.tar`; that folder has no
    provenance statement. Compare `release/cosign.pub` with the key published at <https://github.com/bymorning/releases>.
 
    Sign in to your registry, then push both tarballs with `release/mirror.sh`. It pushes each OCI layout with `crane`,
@@ -192,7 +192,7 @@ Other module settings are not variables in the example root. To change them, add
    acr=$(terraform -chdir=installers/azure/environments/<customer> output -raw acr_login_server)
    az acr login --name "${acr%%.*}" --expose-token --output tsv --query accessToken \
      | crane auth login "$acr" --username 00000000-0000-0000-0000-000000000000 --password-stdin
-   sh release/mirror.sh "$acr" 1.2.0
+   sh release/mirror.sh "$acr" 1.2.1
    ```
 
    ```text
@@ -206,9 +206,9 @@ Other module settings are not variables in the example root. To change them, add
    its record:
 
    ```sh
-   layout=$(mktemp -d) && tar -xf release/bymorning-3c95f0085101.tar -C "$layout"
-   crane push "$layout" "$acr/bymorning:1.2.0"
-   crane digest "$acr/bymorning:1.2.0"      # must equal the digest in release/image-azure.txt
+   layout=$(mktemp -d) && tar -xf release/bymorning-2c43f07c62fc.tar -C "$layout"
+   crane push "$layout" "$acr/bymorning:1.2.1"
+   crane digest "$acr/bymorning:1.2.1"      # must equal the digest in release/image-azure.txt
    ```
 
 4. **Get cluster credentials.**
@@ -271,7 +271,7 @@ Code runs in short-lived pods, one per call, in namespace `bymorning-sandbox`. T
 execute unless a deny-all `NetworkPolicy` selects the sandbox pods, so the cluster's network policy engine must enforce it.
 
 1. Push the execution image to the registry the sandbox nodes pull from. `release/mirror.sh` in Deploy step 3
-   already pushed it (`release/bymorning-code-interpreter-3c95f0085101.tar`, recorded in `release/image-execution.txt`,
+   already pushed it (`release/bymorning-code-interpreter-2c43f07c62fc.tar`, recorded in `release/image-execution.txt`,
    verified with `release/code-interpreter/evidence/`) and printed its digest-pinned reference. If you pushed by hand,
    push it as in that step with repository `bymorning-code-interpreter` and compare the digest with the record.
 2. Edit `installers/azure/k8s/components/code-interpreter-kubernetes/config/bymorning.jsonc`
