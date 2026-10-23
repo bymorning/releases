@@ -1,8 +1,8 @@
-# ByMorning 1.2.1 on Azure (AKS)
+# ByMorning 1.3.0 on Azure (AKS)
 
 > This is the installation guide shipped as `README.md` inside
-> [`bymorning-azure-1.2.1.zip`](https://github.com/bymorning/releases/releases/download/v1.2.1/bymorning-azure-1.2.1.zip).
-> Paths refer to the unpacked package. The [release notes](RELEASE-NOTES-1.2.1.md) and
+> [`bymorning-azure-1.3.0.zip`](https://github.com/bymorning/releases/releases/download/v1.3.0/bymorning-azure-1.3.0.zip).
+> Paths refer to the unpacked package. The [release notes](RELEASE-NOTES-1.3.0.md) and
 > [sandbox guide](sandbox.md) are alongside.
 
 ## Contents of this package
@@ -10,7 +10,7 @@
 | Path                | Contents                                                                                      |
 | ------------------- | --------------------------------------------------------------------------------------------- |
 | `README.md`         | This installation guide                                                                       |
-| `RELEASE-NOTES.md`  | What 1.2.1 is, sign-in requirements, known limits                                             |
+| `RELEASE-NOTES.md`  | What 1.3.0 is, sign-in requirements, known limits                                             |
 | `installers/azure/` | Terraform module and example root, Kubernetes manifests, scripts, and `smoke.sh`              |
 | `sandbox/`          | Code execution sandbox manifests and their [README](sandbox.md)                        |
 | `release/`          | Image tarballs, digests, signing key, `mirror.sh`, and signed evidence (SBOMs, scans, triage) |
@@ -18,10 +18,10 @@
 
 | Image          | Tarball                                               | Digest                                                                    |
 | -------------- | ----------------------------------------------------- | ------------------------------------------------------------------------- |
-| Gateway        | `release/bymorning-2c43f07c62fc.tar`                  | `sha256:a00e8003597946fb2a58853fe81c883bd91cd7bc899708d619454050eb89616f` |
-| Code execution | `release/bymorning-code-interpreter-2c43f07c62fc.tar` | `sha256:109f89d894c12f55ca13e2aa565bf25ce3811f965cfe252bb6f41bbe62848cca` |
+| Gateway        | `release/bymorning-92f9b249d2d9.tar`                  | `sha256:a5f8047523f3b71fd376e167b80955570db9a22161e6abde00ffaed1189c7482` |
+| Code execution | `release/bymorning-code-interpreter-92f9b249d2d9.tar` | `sha256:1c664f22abb77c7c8b6349f8a40b2bb5be115c328e513d0292ef724d84c8fa0a` |
 
-Both images were built from source commit `2c43f07c62fc`. Evidence: `release/gateway/evidence/` (Gateway) and
+Both images were built from source commit `92f9b249d2d9`. Evidence: `release/gateway/evidence/` (Gateway) and
 `release/code-interpreter/evidence/` (code execution), signed with the key `release/cosign.pub`; see
 [Release evidence](#release-evidence). Compare `release/cosign.pub` with the key published at
 <https://github.com/bymorning/releases>.
@@ -76,7 +76,13 @@ Run every command from the directory that contains `installers/` and `release/`.
   an NGINX ingress controller, or replace the `Ingress` with your own routing (see Deploy, step 7). You
   need a DNS name for the app and a TLS certificate for it.
 - **Identity provider:** a Microsoft Entra tenant (Government tenant for Azure Government) where you
-  can register an application, and the email domains your users sign in with.
+  can register an application, and the email domains your users sign in with. The ByMorning
+  documentation page **Deploy → Microsoft Entra** (`/deploy/entra`) covers the app registration.
+- **Identity provider egress:** the Gateway pod needs outbound HTTPS (443) to the issuer,
+  `login.microsoftonline.us` (Azure Government) or `login.microsoftonline.com`, to register the Auth
+  Provider in Setup and on every sign-in. With `outbound_type = "userDefinedRouting"`, allow it on your
+  firewall (Microsoft's `AzureActiveDirectory` service tag). Without it, Setup reports `ByMorning could
+  not reach the identity provider at <issuer origin>. Check that the Gateway has outbound HTTPS access to it.`
 - **For Amazon Bedrock (optional):** an AWS account, its partition (`aws` or `aws-us-gov`), the Bedrock
   Region, and model access enabled. The cluster must reach AWS STS and Bedrock. Azure Government does not
   imply AWS GovCloud; the partition is your choice.
@@ -164,35 +170,37 @@ Other module settings are not variables in the example root. To change them, add
    `outputs.json` omits the sensitive values; they reach the cluster through `create-secret.sh`.
 
 3. **Verify and push the images.** ByMorning delivers the Gateway image tarball
-   `release/bymorning-2c43f07c62fc.tar` with its record `release/image-azure.txt`, the code execution image
-   `release/bymorning-code-interpreter-2c43f07c62fc.tar` with `release/image-execution.txt`, the signing key
+   `release/bymorning-92f9b249d2d9.tar` with its record `release/image-azure.txt`, the code execution image
+   `release/bymorning-code-interpreter-92f9b249d2d9.tar` with `release/image-execution.txt`, the signing key
    `release/cosign.pub`, and one signed evidence folder per image, `release/gateway/evidence/` and
    `release/code-interpreter/evidence/`. Verify the Gateway image first (`SHA256SUMS` names the tarball as
-   `../../bymorning-2c43f07c62fc.tar`, its place in `release/`):
+   `../../bymorning-92f9b249d2d9.tar`, its place in `release/`):
 
    ```sh
    cd release/gateway/evidence
    sha256sum -c SHA256SUMS                    # macOS: shasum -a 256 -c SHA256SUMS
    cmp cosign.pub ../../cosign.pub            # the evidence key must equal the pinned key
-   cosign verify-blob --key ../../cosign.pub --bundle bymorning-*.tar.bundle ../../bymorning-2c43f07c62fc.tar
+   cosign verify-blob --key ../../cosign.pub --bundle bymorning-*.tar.bundle ../../bymorning-92f9b249d2d9.tar
    cosign verify-blob --key ../../cosign.pub --bundle SHA256SUMS.bundle SHA256SUMS
    cosign verify-blob --key ../../cosign.pub --bundle provenance.intoto.json.bundle provenance.intoto.json
    cd ../../..
    ```
 
    Each command prints `Verified OK` (or `OK` per file). Repeat in `release/code-interpreter/evidence/` with
-   `bymorning-code-interpreter-*.tar.bundle` and `../../bymorning-code-interpreter-2c43f07c62fc.tar`; that folder has no
+   `bymorning-code-interpreter-*.tar.bundle` and `../../bymorning-code-interpreter-92f9b249d2d9.tar`; that folder has no
    provenance statement. Compare `release/cosign.pub` with the key published at <https://github.com/bymorning/releases>.
 
-   Sign in to your registry, then push both tarballs with `release/mirror.sh`. It pushes each OCI layout with `crane`,
-   tags it with the release version, fails if a pushed digest differs from the record, and prints the two digest-pinned
-   references:
+   Sign in to your registry, then push both tarballs with `release/mirror.sh`. Before pushing, it verifies each
+   tarball's signature with `cosign` when it is on `PATH` (and says so when it is not), and checks that the tarball
+   holds exactly one linux/amd64 image whose digest is the recorded one and whose every blob matches its hash. It
+   pushes each OCI layout with `crane`, tags it with the release version, fails if a pushed digest differs from the
+   record, and prints the two digest-pinned references:
 
    ```sh
    acr=$(terraform -chdir=installers/azure/environments/<customer> output -raw acr_login_server)
    az acr login --name "${acr%%.*}" --expose-token --output tsv --query accessToken \
      | crane auth login "$acr" --username 00000000-0000-0000-0000-000000000000 --password-stdin
-   sh release/mirror.sh "$acr" 1.2.1
+   sh release/mirror.sh "$acr" 1.3.0
    ```
 
    ```text
@@ -206,9 +214,9 @@ Other module settings are not variables in the example root. To change them, add
    its record:
 
    ```sh
-   layout=$(mktemp -d) && tar -xf release/bymorning-2c43f07c62fc.tar -C "$layout"
-   crane push "$layout" "$acr/bymorning:1.2.1"
-   crane digest "$acr/bymorning:1.2.1"      # must equal the digest in release/image-azure.txt
+   layout=$(mktemp -d) && tar -xf release/bymorning-92f9b249d2d9.tar -C "$layout"
+   crane push "$layout" "$acr/bymorning:1.3.0"
+   crane digest "$acr/bymorning:1.3.0"      # must equal the digest in release/image-azure.txt
    ```
 
 4. **Get cluster credentials.**
@@ -271,7 +279,7 @@ Code runs in short-lived pods, one per call, in namespace `bymorning-sandbox`. T
 execute unless a deny-all `NetworkPolicy` selects the sandbox pods, so the cluster's network policy engine must enforce it.
 
 1. Push the execution image to the registry the sandbox nodes pull from. `release/mirror.sh` in Deploy step 3
-   already pushed it (`release/bymorning-code-interpreter-2c43f07c62fc.tar`, recorded in `release/image-execution.txt`,
+   already pushed it (`release/bymorning-code-interpreter-92f9b249d2d9.tar`, recorded in `release/image-execution.txt`,
    verified with `release/code-interpreter/evidence/`) and printed its digest-pinned reference. If you pushed by hand,
    push it as in that step with repository `bymorning-code-interpreter` and compare the digest with the record.
 2. Edit `installers/azure/k8s/components/code-interpreter-kubernetes/config/bymorning.jsonc`
@@ -517,7 +525,10 @@ execution image. A failed `migrate` init container shows in `-c migrate`.
 **Blob or Key Vault calls are denied.** The workload identity token audience must equal `federated_audience`. Run
 `smoke.sh --temp` (it prints the token audience) and set `federated_audience` to the value shown, then apply again.
 
-**Sign-in fails with an email-domain refusal.** The token needs `email` and `xms_edov: true`, and the user's email domain
+**Sign-in returns to `/login?auth=failed&reason=<code>`.** The sign-in page explains the code; `claims` and `domain` are
+the common Entra causes, and `/deploy/entra` lists every code. The gateway log line `Authentication callback failed` adds `stage`, `error`, and `rejection`.
+
+**Sign-in fails with `reason=claims` or `reason=domain`.** The token needs `email` and `xms_edov: true`, and the user's email domain
 must be verified in the tenant and admitted in ByMorning. Entra guest (`#EXT#`) users and users without a `mail`
 attribute are refused. A browser already signed in to another Microsoft account signs in as that account; use a private window.
 
